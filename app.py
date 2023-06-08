@@ -1,9 +1,31 @@
-from flask import request, Flask
+from flask import json, request, Flask
+from werkzeug.exceptions import HTTPException
+
+from schemas import (
+    GetArticleTopDayRequest,
+    GetMostViewedArticlesRequest,
+    GetTotalArticleViewsRequest
+)
 
 
 V1_BASE_URL="/api/v1"
 
 app = Flask(__name__)
+
+
+@app.errorhandler(HTTPException)
+def handle_exception(e):
+    """Return JSON instead of HTML for HTTP errors."""
+    # start with the correct headers and status code from the error
+    response = e.get_response()
+    # replace the body with JSON
+    response.data = json.dumps({
+        "code": e.code,
+        "name": e.name,
+        "description": e.description,
+    })
+    response.content_type = "application/json"
+    return response
 
 
 @app.get(f"{V1_BASE_URL}/articles/top")
@@ -12,11 +34,12 @@ def most_viewed_articles():
     Retrieve a list of the most viewed articles for a given week or
     month.
     """
-    # TODO: how to only accept {week|month} for time_period
-    time_period = request.args.get("time_period")
-    day = request.args.get("day")
-    month = request.args.get("month")
-    year = request.args.get("year")
+    request_schema = GetMostViewedArticlesRequest(
+        day=request.args.get("day"),
+        month=request.args.get("month"),
+        year=request.args.get("year"),
+        time_period=request.args.get("time_period"),
+    )
 
     return {
       "count": 2,
@@ -41,14 +64,16 @@ def total_article_views():
     For an article, get the total views for that article in a given a
     week or a month.
     """
-    title = request.args.get("title")
-    time_period = request.args.get("time_period")
-    day = request.args.get("day")
-    month = request.args.get("month")
-    year = request.args.get("year")
+    request_schema = GetTotalArticleViewsRequest(
+        day=request.args.get("day"),
+        month=request.args.get("month"),
+        year=request.args.get("year"),
+        time_period=request.args.get("time_period"),
+        title=request.args.get("title"),
+    )
 
     return {
-      "title": title,
+      "title": request_schema.title,
       "start_date": "DDMMYYYY",
       "end_date": "DDMMYYYY",
       "total_views": 12345
@@ -56,17 +81,19 @@ def total_article_views():
 
 
 @app.get(f"{V1_BASE_URL}/articles/top_day")
-def top_day():
+def article_top_day():
     """
     For an article in a given month, return which day it got the most
     views.
     """
-    title = request.args.get("title")
-    month = request.args.get("month")
-    year = request.args.get("year")
+    request_schema = GetArticleTopDayRequest(
+        month=request.args.get("month"),
+        year=request.args.get("year"),
+        title=request.args.get("title"),
+    )
 
     return {
-      "title": title,
+      "title": request_schema.title,
       "date": "DDMMYYYY",
       "views": 12345
     }
