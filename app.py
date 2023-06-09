@@ -1,5 +1,9 @@
+from calendar import monthrange
+from datetime import date, timedelta
+
 from flask import json, request, Flask
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import BadRequest, HTTPException
+import requests
 
 from schemas import (
     GetArticleTopDayRequest,
@@ -8,7 +12,11 @@ from schemas import (
 )
 
 
+USER_AGENT_HEADER = {'User-Agent': 'pageviewsAPI/0.0 (ka.cox@outlook.com)'}
 V1_BASE_URL="/api/v1"
+WIKIMEDIA_BASE_URL = "https://wikimedia.org/api/rest_v1"
+WIKIMEDIA_ACCESS_PARAM = "all-access"
+WIKIMEDIA_PROJECT_PARAM = "en.wikipedia"
 
 app = Flask(__name__)
 
@@ -41,20 +49,50 @@ def most_viewed_articles():
         time_period=request.args.get("time_period"),
     )
 
+    if request_schema.time_period == "week":
+        start_date = date(
+            request_schema.year, request_schema.month, request_schema.day
+        )
+        days = [start_date + timedelta(days=x) for x in range(7)]
+    elif request_schema.time_period == "month":
+        start_date = date(request_schema.year, request_schema.month, 1)
+        days = [
+            start_date + timedelta(days=days_offset)
+            for days_offset in range(
+                monthrange(
+                    request_schema.year, request_schema.month
+                )[1]
+            )
+        ]
+    else:
+        raise BadRequest("time_period must be 'month' or 'week'")
+
+    article_counts = {}
+    for day in days:
+        resp = requests.get(
+            f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/top/"
+            + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
+            + f"{request_schema.year}/{request_schema.month}/"
+            + f"{request_schema.day}",
+            headers=USER_AGENT_HEADER,
+        )
+        resp.raise_for_status()
+
+        articles = resp.json()["items"][0]["articles"]
+        for article in articles:
+            article_counts[article["article"]] = article_counts.get(
+                article["article"], 0
+            ) + article["views"]
+    final_articles = [
+        {"title": title, "total_views": views}
+        for title, views in article_counts.items()
+    ]
+
     return {
-      "count": 2,
-      "start_date": "DDMMYYYY",
-      "end_date": "DDMMYYYY",
-      "articles": [
-        {
-          "title": "Article Title",
-          "total_views": 12345
-        },
-        {
-          "title": "Another Article Title",
-          "total_views": 11857
-        },
-      ]
+      "count": len(article_counts),
+      "start_date": start_date.isoformat(),
+      "end_date": days[-1].isoformat(),
+      "articles": final_articles
     }
 
 
