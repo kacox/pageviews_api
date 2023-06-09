@@ -16,7 +16,10 @@ USER_AGENT_HEADER = {'User-Agent': 'pageviewsAPI/0.0 (ka.cox@outlook.com)'}
 V1_BASE_URL="/api/v1"
 WIKIMEDIA_BASE_URL = "https://wikimedia.org/api/rest_v1"
 WIKIMEDIA_ACCESS_PARAM = "all-access"
+WIKIMEDIA_AGENT_PARAM = "all-agents"
+WIKIMEDIA_GRANULARITY_PARAM = "daily"
 WIKIMEDIA_PROJECT_PARAM = "en.wikipedia"
+WIKIMEDIA_TIME_FORMAT = "%Y%m%d"
 
 app = Flask(__name__)
 
@@ -110,11 +113,40 @@ def total_article_views():
         title=request.args.get("title"),
     )
 
+    if request_schema.time_period == "week":
+        start_date = date(
+            request_schema.year, request_schema.month, request_schema.day
+        )
+        end_date = start_date + timedelta(days=6)
+    elif request_schema.time_period == "month":
+        start_date = date(
+            request_schema.year, request_schema.month, 1
+        )
+        remaining_month_days = monthrange(
+            request_schema.year, request_schema.month
+        )[1] - 1
+        end_date = start_date + timedelta(days=remaining_month_days)
+
+    resp = requests.get(
+        f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/per-article/"
+        + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
+        + f"{WIKIMEDIA_AGENT_PARAM}/{request_schema.title}/"
+        + f"{WIKIMEDIA_GRANULARITY_PARAM}/"
+        + f"{start_date.strftime(WIKIMEDIA_TIME_FORMAT)}/"
+        + f"{end_date.strftime(WIKIMEDIA_TIME_FORMAT)}",
+        headers=USER_AGENT_HEADER,
+    )
+    resp.raise_for_status()
+
+    total_views = 0
+    for entry in resp.json()["items"]:
+        total_views += entry["views"]
+
     return {
       "title": request_schema.title,
-      "start_date": "DDMMYYYY",
-      "end_date": "DDMMYYYY",
-      "total_views": 12345
+      "start_date": start_date.isoformat(),
+      "end_date": end_date.isoformat(),
+      "total_views": total_views
     }
 
 
