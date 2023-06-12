@@ -30,6 +30,20 @@ WIKIMEDIA_TIME_FORMAT = "%Y%m%d"
 app = Flask(__name__)
 
 
+def calculate_start_and_end_date(time_period, year, month, day):
+    if time_period == "week":
+        start_date = date(year, month, day)
+        end_date = start_date + timedelta(days=6)
+        return start_date, end_date
+    elif time_period == "month":
+        start_date = date(year, month, 1)
+        remaining_month_days = monthrange(year, month)[1] - 1
+        end_date = start_date + timedelta(days=remaining_month_days)
+        return start_date, end_date
+    else:
+        raise BadRequest("time_period must be 'month' or 'week'")
+
+
 @app.errorhandler(HTTPException)
 def handle_exception(e):
     """Return JSON instead of HTML for HTTP errors."""
@@ -123,20 +137,14 @@ def total_article_views():
         title=request.args.get("title"),
     )
 
-    if request_schema.time_period == "week":
-        start_date = date(
-            request_schema.year, request_schema.month, request_schema.day
-        )
-        end_date = start_date + timedelta(days=6)
-    elif request_schema.time_period == "month":
-        start_date = date(
-            request_schema.year, request_schema.month, 1
-        )
-        remaining_month_days = monthrange(
-            request_schema.year, request_schema.month
-        )[1] - 1
-        end_date = start_date + timedelta(days=remaining_month_days)
+    start_date, end_date = calculate_start_and_end_date(
+        request_schema.time_period,
+        request_schema.year,
+        request_schema.month,
+        request_schema.day,
+    )
 
+    LOGGER.info(f"Requesting with start date: {start_date} and end date: {end_date}")
     resp = requests.get(
         f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/per-article/"
         + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
@@ -172,12 +180,14 @@ def article_top_day():
         title=request.args.get("title"),
     )
 
-    start_date = date(request_schema.year, request_schema.month, 1)
-    remaining_month_days = monthrange(
-        request_schema.year, request_schema.month
-    )[1] - 1
-    end_date = start_date + timedelta(days=remaining_month_days)
+    start_date, end_date = calculate_start_and_end_date(
+        "month",
+        request_schema.year,
+        request_schema.month,
+        None,
+    )
 
+    LOGGER.info(f"Requesting with start date: {start_date} and end date: {end_date}")
     resp = requests.get(
         f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/per-article/"
         + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
