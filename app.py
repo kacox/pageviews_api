@@ -1,5 +1,5 @@
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import json, request, Flask
 from werkzeug.exceptions import BadRequest, HTTPException
@@ -162,8 +162,34 @@ def article_top_day():
         title=request.args.get("title"),
     )
 
+    start_date = date(request_schema.year, request_schema.month, 1)
+    remaining_month_days = monthrange(
+        request_schema.year, request_schema.month
+    )[1] - 1
+    end_date = start_date + timedelta(days=remaining_month_days)
+
+    resp = requests.get(
+        f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/per-article/"
+        + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
+        + f"{WIKIMEDIA_AGENT_PARAM}/{request_schema.title}/"
+        + f"{WIKIMEDIA_GRANULARITY_PARAM}/"
+        + f"{start_date.strftime(WIKIMEDIA_TIME_FORMAT)}/"
+        + f"{end_date.strftime(WIKIMEDIA_TIME_FORMAT)}",
+        headers=USER_AGENT_HEADER,
+    )
+    resp.raise_for_status()
+
+    most_views = 0
+    most_viewed_day = None
+    for entry in resp.json()["items"]:
+        if entry["views"] > most_views:
+            most_views = entry["views"]
+            most_viewed_day = entry["timestamp"]
+
+    most_viewed_day = datetime.strptime(most_viewed_day, "%Y%m%d00")
+
     return {
       "title": request_schema.title,
-      "date": "DDMMYYYY",
-      "views": 12345
+      "date": most_viewed_day.strftime("%Y-%m-%d"),
+      "views": most_views
     }
