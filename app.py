@@ -1,9 +1,12 @@
+import bisect
+import logging
+import logging.config
 from calendar import monthrange
 from datetime import date, datetime, timedelta
 
+import requests
 from flask import json, request, Flask
 from werkzeug.exceptions import BadRequest, HTTPException
-import requests
 
 from schemas import (
     GetArticleTopDayRequest,
@@ -12,9 +15,12 @@ from schemas import (
 )
 
 
+logging.config.fileConfig("logging.conf")
+LOGGER = logging.getLogger("pageviewsApi")
 USER_AGENT_HEADER = {'User-Agent': 'pageviewsAPI/0.0 (ka.cox@outlook.com)'}
 V1_BASE_URL="/api/v1"
 WIKIMEDIA_BASE_URL = "https://wikimedia.org/api/rest_v1"
+WIKIMEDIA_TOP_PATH = "/metrics/pageviews/top"
 WIKIMEDIA_ACCESS_PARAM = "all-access"
 WIKIMEDIA_AGENT_PARAM = "all-agents"
 WIKIMEDIA_GRANULARITY_PARAM = "daily"
@@ -71,12 +77,12 @@ def most_viewed_articles():
         raise BadRequest("time_period must be 'month' or 'week'")
 
     article_counts = {}
+    LOGGER.info(f"Making {len(days)} requests to {WIKIMEDIA_BASE_URL}{WIKIMEDIA_TOP_PATH}")
     for day in days:
         resp = requests.get(
-            f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/top/"
+            f"{WIKIMEDIA_BASE_URL}{WIKIMEDIA_TOP_PATH}/"
             + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
-            + f"{request_schema.year}/{request_schema.month}/"
-            + f"{request_schema.day}",
+            + f"{day.year}/{day.month}/{day.day}",
             headers=USER_AGENT_HEADER,
         )
         resp.raise_for_status()
@@ -86,10 +92,14 @@ def most_viewed_articles():
             article_counts[article["article"]] = article_counts.get(
                 article["article"], 0
             ) + article["views"]
-    final_articles = [
-        {"title": title, "total_views": views}
-        for title, views in article_counts.items()
-    ]
+    final_articles = []
+    for title, views in article_counts.items():
+        element = {"title": title, "total_views": views}
+        bisect.insort(
+            final_articles,
+            element,
+            key=lambda element: -1 * element["total_views"]
+        )
 
     return {
       "count": len(article_counts),
