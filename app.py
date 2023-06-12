@@ -30,6 +30,22 @@ WIKIMEDIA_TIME_FORMAT = "%Y%m%d"
 app = Flask(__name__)
 
 
+def calculate_days(time_period, year, month, day):
+    if time_period == "week":
+        start_date = date(year, month, day)
+        days = [start_date + timedelta(days=x) for x in range(7)]
+        return days
+    elif time_period == "month":
+        start_date = date(year, month, 1)
+        days = [
+            start_date + timedelta(days=days_offset)
+            for days_offset in range(monthrange(year, month)[1])
+        ]
+        return days
+    else:
+        raise BadRequest("time_period must be 'month' or 'week'")
+
+
 def calculate_start_and_end_date(time_period, year, month, day):
     if time_period == "week":
         start_date = date(year, month, day)
@@ -72,33 +88,28 @@ def most_viewed_articles():
         time_period=request.args.get("time_period"),
     )
 
-    if request_schema.time_period == "week":
-        start_date = date(
-            request_schema.year, request_schema.month, request_schema.day
-        )
-        days = [start_date + timedelta(days=x) for x in range(7)]
-    elif request_schema.time_period == "month":
-        start_date = date(request_schema.year, request_schema.month, 1)
-        days = [
-            start_date + timedelta(days=days_offset)
-            for days_offset in range(
-                monthrange(
-                    request_schema.year, request_schema.month
-                )[1]
-            )
-        ]
-    else:
-        raise BadRequest("time_period must be 'month' or 'week'")
+    days = calculate_days(
+        request_schema.time_period,
+        request_schema.year,
+        request_schema.month,
+        request_schema.day
+    )
 
     article_counts = {}
     LOGGER.info(f"Making {len(days)} requests to {WIKIMEDIA_BASE_URL}{WIKIMEDIA_TOP_PATH}")
     for day in days:
+        formatted_day = str(day.day) if day.day >= 10 else f"0{day.day}"
+        formatted_month = str(day.month) if day.month >= 10 else f"0{day.month}"
         resp = requests.get(
             f"{WIKIMEDIA_BASE_URL}{WIKIMEDIA_TOP_PATH}/"
             + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
-            + f"{day.year}/{day.month}/{day.day}",
+            + f"{day.year}/{formatted_month}/{formatted_day}",
             headers=USER_AGENT_HEADER,
         )
+
+        if resp.status_code == 404 and "valid" in resp.json()["detail"]:
+            LOGGER.warning(f"Missing data for {day.year}-{day.month}-{day.day}")
+            continue
         resp.raise_for_status()
 
         articles = resp.json()["items"][0]["articles"]
@@ -117,7 +128,7 @@ def most_viewed_articles():
 
     return {
       "count": len(article_counts),
-      "start_date": start_date.isoformat(),
+      "start_date": days[0].isoformat(),
       "end_date": days[-1].isoformat(),
       "articles": final_articles
     }
