@@ -58,6 +58,13 @@ def validate_time_period(time_period):
         raise BadRequest("time_period must be 'month' or 'week'")
 
 
+def validate_year(year):
+    try:
+        assert year >= 2001
+    except AssertionError:
+        raise BadRequest("Year must be greater than 2001")
+
+
 @dataclass
 class GetMostViewedArticlesRequest:
     month: InitVar[int]
@@ -80,6 +87,7 @@ class GetMostViewedArticlesRequest:
                 validate_day_month_year(1, month, year)
             )
 
+        validate_year(self.year)
         validate_date(self.day, self.month, self.year)
 
 
@@ -108,6 +116,7 @@ class GetTotalArticleViewsRequest:
                 validate_day_month_year(1, month, year)
             )
 
+        validate_year(self.year)
         validate_date(self.day, self.month, self.year)
 
 
@@ -127,3 +136,5 @@ class GetArticleTopDayRequest:
             self.year = int(year)
         except ValueError:
             raise BadRequest("Month and year must be integers")
+
+        validate_year(self.year)
