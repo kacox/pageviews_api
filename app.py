@@ -136,10 +136,10 @@ def most_viewed_articles():
         )
 
     return {
-      "count": len(article_counts),
-      "start_date": days[0].isoformat(),
-      "end_date": days[-1].isoformat(),
-      "articles": final_articles
+        "count": len(article_counts),
+        "start_date": days[0].isoformat(),
+        "end_date": days[-1].isoformat(),
+        "articles": final_articles
     }
 
 
@@ -175,17 +175,27 @@ def total_article_views():
         + f"{end_date.strftime(WIKIMEDIA_TIME_FORMAT)}",
         headers=USER_AGENT_HEADER,
     )
-    resp.raise_for_status()
+    if resp.status_code == 404 and "valid" in resp.json()["detail"]:
+        LOGGER.warning(f"No data for year: {request_schema.year}, "
+                       + f"month: {request_schema.month}")
+        return {
+            "title": request_schema.title,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "total_views": 0
+        }
+    else:
+        resp.raise_for_status()
 
     total_views = 0
     for entry in resp.json()["items"]:
         total_views += entry["views"]
 
     return {
-      "title": request_schema.title,
-      "start_date": start_date.isoformat(),
-      "end_date": end_date.isoformat(),
-      "total_views": total_views
+        "title": request_schema.title,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "total_views": total_views
     }
 
 
@@ -240,7 +250,7 @@ def article_top_day():
     most_viewed_day = datetime.strptime(most_viewed_day, "%Y%m%d00")
 
     return {
-      "title": request_schema.title,
-      "date": most_viewed_day.strftime("%Y-%m-%d"),
-      "views": most_views
+        "title": request_schema.title,
+        "date": most_viewed_day.strftime("%Y-%m-%d"),
+        "views": most_views
     }

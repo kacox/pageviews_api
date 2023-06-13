@@ -7,6 +7,9 @@ from app import app, V1_BASE_URL
 
 
 GET_TOTAL_ARTICLE_VIEWS = f"{V1_BASE_URL}/articles/total_views"
+WIKIMEDIA_EMPTY_RESPONSE = {
+    "detail": "The date(s) you used are valid, but..."
+}
 WIKIMEDIA_RESPONSE = {
     "items": [
         {
@@ -60,6 +63,32 @@ def test_total_article_views_week(mock_request, client):
     assert resp.json["start_date"] == "2015-10-10"
     assert resp.json["end_date"] == "2015-10-16"
     assert resp.json["total_views"] == 305306
+    assert resp.json["title"] == params["title"]
+
+
+@patch("app.requests.get")
+def test_total_article_views_week_no_data(mock_request, client):
+    """
+    Should return a response with 0 views when the provided parameters are
+    valid, but Wikimedia does not have any data loaded for that date and title.
+    """
+    response_with_json = Response()
+    response_with_json.json = lambda: WIKIMEDIA_EMPTY_RESPONSE
+    response_with_json.status_code = 404
+    mock_request.return_value = response_with_json
+
+    params = {
+        "day": 10,
+        "month": 10,
+        "year": 2015,
+        "time_period": "week",
+        "title": "Carlos_Hathcock"
+    }
+    resp = client.get(GET_TOTAL_ARTICLE_VIEWS, query_string=params)
+
+    assert resp.json["start_date"] == "2015-10-10"
+    assert resp.json["end_date"] == "2015-10-16"
+    assert resp.json["total_views"] == 0
     assert resp.json["title"] == params["title"]
 
 
