@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 
 import requests
 from flask import json, request, Flask
-from werkzeug.exceptions import BadRequest, HTTPException
+from werkzeug.exceptions import HTTPException
 
 from schemas import (
     GetArticleTopDayRequest,
@@ -32,9 +32,12 @@ app = Flask(__name__)
 
 def calculate_days(time_period, year, month, day):
     if time_period == "week":
-        start_date = date(year, month, day)
-        days = [start_date + timedelta(days=x) for x in range(7)]
-        return days
+        if day:
+            start_date = date(year, month, day)
+            days = [start_date + timedelta(days=x) for x in range(7)]
+            return days
+        else:
+            raise ValueError("Must provide day")
     elif time_period == "month":
         start_date = date(year, month, 1)
         days = [
@@ -43,21 +46,24 @@ def calculate_days(time_period, year, month, day):
         ]
         return days
     else:
-        raise BadRequest("time_period must be 'month' or 'week'")
+        raise ValueError("time_period must be 'month' or 'week'")
 
 
 def calculate_start_and_end_date(time_period, year, month, day):
     if time_period == "week":
-        start_date = date(year, month, day)
-        end_date = start_date + timedelta(days=6)
-        return start_date, end_date
+        if day:
+            start_date = date(year, month, day)
+            end_date = start_date + timedelta(days=6)
+            return start_date, end_date
+        else:
+            raise ValueError("Must provide day")
     elif time_period == "month":
         start_date = date(year, month, 1)
         remaining_month_days = monthrange(year, month)[1] - 1
         end_date = start_date + timedelta(days=remaining_month_days)
         return start_date, end_date
     else:
-        raise BadRequest("time_period must be 'month' or 'week'")
+        raise ValueError("time_period must be 'month' or 'week'")
 
 
 @app.errorhandler(HTTPException)
@@ -208,7 +214,15 @@ def article_top_day():
         + f"{end_date.strftime(WIKIMEDIA_TIME_FORMAT)}",
         headers=USER_AGENT_HEADER,
     )
-    resp.raise_for_status()
+    if resp.status_code == 404 and "valid" in resp.json()["detail"]:
+        LOGGER.warning(f"No data for year: {request_schema.year}, month: {request_schema.month}")
+        return {
+          "title": request_schema.title,
+          "date": None,
+          "views": 0
+        }
+    else:
+        resp.raise_for_status()
 
     most_views = 0
     most_viewed_day = None
