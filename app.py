@@ -18,7 +18,7 @@ from schemas import (
 logging.config.fileConfig("logging.conf")
 LOGGER = logging.getLogger("pageviewsApi")
 USER_AGENT_HEADER = {'User-Agent': 'pageviewsAPI/0.0 (ka.cox@outlook.com)'}
-V1_BASE_URL="/api/v1"
+V1_BASE_URL = "/api/v1"
 WIKIMEDIA_BASE_URL = "https://wikimedia.org/api/rest_v1"
 WIKIMEDIA_TOP_PATH = "/metrics/pageviews/top"
 WIKIMEDIA_ACCESS_PARAM = "all-access"
@@ -102,10 +102,12 @@ def most_viewed_articles():
     )
 
     article_counts = {}
-    LOGGER.info(f"Making {len(days)} requests to {WIKIMEDIA_BASE_URL}{WIKIMEDIA_TOP_PATH}")
+    LOGGER.info(f"Making {len(days)} requests to {WIKIMEDIA_BASE_URL}"
+                + f"{WIKIMEDIA_TOP_PATH}")
     for day in days:
         formatted_day = str(day.day) if day.day >= 10 else f"0{day.day}"
-        formatted_month = str(day.month) if day.month >= 10 else f"0{day.month}"
+        formatted_month = (str(day.month) if day.month >= 10
+                           else f"0{day.month}")
         resp = requests.get(
             f"{WIKIMEDIA_BASE_URL}{WIKIMEDIA_TOP_PATH}/"
             + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
@@ -114,7 +116,8 @@ def most_viewed_articles():
         )
 
         if resp.status_code == 404 and "valid" in resp.json()["detail"]:
-            LOGGER.warning(f"Missing data for {day.year}-{day.month}-{day.day}")
+            LOGGER.warning(f"Missing data for {day.year}-{day.month}"
+                           + f"-{day.day}")
             continue
         resp.raise_for_status()
 
@@ -161,7 +164,8 @@ def total_article_views():
         request_schema.day,
     )
 
-    LOGGER.info(f"Requesting with start date: {start_date} and end date: {end_date}")
+    LOGGER.info(f"Requesting with start date: {start_date} and "
+                + f"end date: {end_date}")
     resp = requests.get(
         f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/per-article/"
         + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
@@ -204,7 +208,8 @@ def article_top_day():
         None,
     )
 
-    LOGGER.info(f"Requesting with start date: {start_date} and end date: {end_date}")
+    LOGGER.info(f"Requesting with start date: {start_date} and "
+                + f"end date: {end_date}")
     resp = requests.get(
         f"{WIKIMEDIA_BASE_URL}/metrics/pageviews/per-article/"
         + f"{WIKIMEDIA_PROJECT_PARAM}/{WIKIMEDIA_ACCESS_PARAM}/"
@@ -215,7 +220,8 @@ def article_top_day():
         headers=USER_AGENT_HEADER,
     )
     if resp.status_code == 404 and "valid" in resp.json()["detail"]:
-        LOGGER.warning(f"No data for year: {request_schema.year}, month: {request_schema.month}")
+        LOGGER.warning(f"No data for year: {request_schema.year}, "
+                       + f"month: {request_schema.month}")
         return {
           "title": request_schema.title,
           "date": None,

@@ -16,21 +16,21 @@ WIKIMEDIA_RESPONSE = {
             "month": "10",
             "day": "10",
             "articles": [
-            {
-                "article": "Main_Page",
-                "views": 18793503,
-                "rank": 1
-            },
-            {
-                "article": "Special:Search",
-                "views": 2629537,
-                "rank": 2
-            },
-            {
-                "article": "Carlos_Hathcock",
-                "views": 291358,
-                "rank": 3
-            },
+                {
+                    "article": "Main_Page",
+                    "views": 18793503,
+                    "rank": 1
+                },
+                {
+                    "article": "Special:Search",
+                    "views": 2629537,
+                    "rank": 2
+                },
+                {
+                    "article": "Carlos_Hathcock",
+                    "views": 291358,
+                    "rank": 3
+                },
             ]
         }
     ]

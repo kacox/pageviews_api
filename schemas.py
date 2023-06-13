@@ -26,7 +26,7 @@ def assert_week_has_day(day, time_period):
             assert day
         except AssertionError:
             raise BadRequest("Must have start day when requesting a week"
-                + " of articles")
+                             + " of articles")
 
 
 def validate_date(day, month, year):
@@ -72,9 +72,13 @@ class GetMostViewedArticlesRequest:
         assert_week_has_day(day, self.time_period)
 
         if day:
-            self.day, self.month, self.year = validate_day_month_year(day, month, year)
+            self.day, self.month, self.year = (
+                validate_day_month_year(day, month, year)
+            )
         else:
-            self.day, self.month, self.year = validate_day_month_year(1, month, year)
+            self.day, self.month, self.year = (
+                validate_day_month_year(1, month, year)
+            )
 
         validate_date(self.day, self.month, self.year)
 
@@ -96,9 +100,13 @@ class GetTotalArticleViewsRequest:
         assert_week_has_day(day, self.time_period)
 
         if day:
-            self.day, self.month, self.year = validate_day_month_year(day, month, year)
+            self.day, self.month, self.year = (
+                validate_day_month_year(day, month, year)
+            )
         else:
-            self.day, self.month, self.year = validate_day_month_year(1, month, year)
+            self.day, self.month, self.year = (
+                validate_day_month_year(1, month, year)
+            )
 
         validate_date(self.day, self.month, self.year)
 

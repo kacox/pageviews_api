@@ -8,7 +8,7 @@ from app import app, V1_BASE_URL
 
 GET_ARTICLE_TOP_DAY_URL = f"{V1_BASE_URL}/articles/top_day"
 WIKIMEDIA_EMPTY_RESPONSE = {
-    "detail": "The date(s) you used are valid, but we either do not have data for those date(s), or the project you asked for is not loaded yet."
+    "detail": "The date(s) you used are valid, but..."
 }
 WIKIMEDIA_RESPONSE = {
     "items": [
@@ -74,7 +74,7 @@ def test_article_top_day_no_data(mock_request, client):
     resp = client.get(GET_ARTICLE_TOP_DAY_URL, query_string=params)
 
     assert resp.json["title"] == params["title"]
-    assert resp.json["date"] == None
+    assert resp.json["date"] is None
     assert resp.json["views"] == 0
 
 
